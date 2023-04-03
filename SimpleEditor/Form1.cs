@@ -266,10 +266,13 @@ namespace Lab6_oop
                 {
                     if (shape.IsSelected)
                     {
-                        if (resizeDirX > 0 && shape.size.Width < 200)
-                            shape.resize(resizeDirX * sizingSpeed, resizeDirY * sizingSpeed);
-                        if(resizeDirY > 0 && shape.size.Height < 200)
-                            shape.resize(resizeDirX * sizingSpeed, resizeDirY * sizingSpeed);
+                        if (resizeDirX > 0 && shape.size.Width >= 300 || resizeDirY > 0 && shape.size.Height >= 300)
+                        {
+                            shape.draw(g);
+                            continue;
+                        }
+
+                        shape.resize(resizeDirX * sizingSpeed, resizeDirY * sizingSpeed);
                         checkOutOfBounds(shape);
                     }
                     shape.draw(g);
@@ -555,13 +558,17 @@ namespace Lab6_oop
             
             return new Point(a, b);
         }
-        public Point closestBoundary1(int boundX, int boundY)
+        public Point closestBoundary(int boundX, int boundY)
         {
             Point result = new(0, 0);
-            int distanceTop = position.Y;
-            int distanceBot = boundY - position.Y;
-            int distanceLeft = position.X;
-            int distanceRight = boundX - position.X;
+            //int distanceTop = position.Y;
+            //int distanceBot = boundY - position.Y;
+            //int distanceLeft = position.X;
+            //int distanceRight = boundX - position.X;
+            int distanceTop = position.Y - size.Height / 2;
+            int distanceBot = boundY - distanceTop - size.Height;
+            int distanceLeft = position.X - size.Width / 2;
+            int distanceRight = boundX - distanceLeft - size.Width;
             bool bot = false, right = false;
             if (distanceTop > distanceBot) bot = true;
             if (distanceLeft > distanceRight) right = true;
@@ -605,21 +612,25 @@ namespace Lab6_oop
             }
             return result;
         }
-        public Point closestBoundary(int boundX, int boundY)
+        public Point closestBoundary1(int boundX, int boundY)
         {
-            int distanceTop = position.Y;
-            int distanceBot = boundY - position.Y;
-            int distanceLeft = position.X;
-            int distanceRight = boundX - position.X;
+            //int distanceTop = position.Y;
+            //int distanceBot = boundY - position.Y;
+            //int distanceLeft = position.X;
+            //int distanceRight = boundX - position.X;
+            int distanceTop = position.Y - size.Height / 2;
+            int distanceBot = boundY - distanceTop - size.Height;
+            int distanceLeft = position.X - size.Width / 2;
+            int distanceRight = boundX - distanceLeft - size.Width;
 
-            Point closest = new(boundX, position.Y);
+            Point closest = new(boundX, distanceTop);
 
             if (distanceTop < Math.Min(distanceBot, Math.Min(distanceLeft, distanceRight)))
-                closest = new(position.X, 0);
+                closest = new(distanceLeft, 0);
             else if (distanceBot < Math.Min(distanceTop, Math.Min(distanceLeft, distanceRight)))
-                closest = new(position.X, boundY);
+                closest = new(distanceLeft, boundY);
             else if (distanceLeft < Math.Min(distanceTop, Math.Min(distanceBot, distanceRight)))
-                closest = new(0, position.Y);
+                closest = new(0, distanceTop);
 
             return closest;
         }
@@ -658,5 +669,5 @@ namespace Lab6_oop
     }
 
     
-    }
+    
 }
