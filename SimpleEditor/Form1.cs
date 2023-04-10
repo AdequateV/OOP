@@ -5,10 +5,10 @@ namespace Lab6_oop
     {
         Bitmap bm;
         Graphics g;
-        List<IShape> shapes;
-        List<IShape> deleteBuffer;
+        Container<IShape> shapes;
+        Container<IShape> deleteBuffer;
         int mouseX, mouseY;
-        
+
         SelectedShape sh;
         ICreator factoryCircle, factorySquare, factoryTriangle;
         int boundsX, boundsY;
@@ -20,7 +20,7 @@ namespace Lab6_oop
             g.Clear(Color.PaleTurquoise);
             pictureBox1.Image = bm;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            shapes = new List<IShape>();
+            shapes = new Container<IShape>();
             factoryCircle = new circleFactory();
             factorySquare = new squareFactory();
             factoryTriangle = new triangleFactory();
@@ -28,7 +28,7 @@ namespace Lab6_oop
             boundsY = pictureBox1.Size.Height;
             label4.Text = boundsX.ToString() + " " + boundsY.ToString();
         }
-        
+
         Pen pen = new(Color.Black, 1);
         enum SelectedShape
         {
@@ -37,10 +37,10 @@ namespace Lab6_oop
             Triangle,
             Section
         }
-        
 
 
-    
+
+
         private void pictureBox1_MouseDown(object sender, MouseEventArgs e)
         {
             mouseX = e.X;
@@ -48,9 +48,9 @@ namespace Lab6_oop
             bool multi = checkBoxMulti.Checked && Form.ModifierKeys == Keys.Control;
             bool joints = checkBoxJoints.Checked;
             bool createNew = true;
-            foreach(IShape c in shapes)
+            foreach (IShape c in shapes)
             {
-                if(c.check(mouseX, mouseY))
+                if (c.check(mouseX, mouseY))
                 {
                     createNew = false;
                     if (multi || joints)
@@ -59,7 +59,7 @@ namespace Lab6_oop
                             foreach (IShape c2 in shapes)
                                 if (!c2.check(mouseX, mouseY))
                                     c2.IsSelected = false;
-                        
+
                         c.IsSelected = true;
                         continue;
                     }
@@ -76,89 +76,73 @@ namespace Lab6_oop
                         c.IsSelected = false;
 
                 IShape? s = null;
-                
+
                 if (sh == SelectedShape.Circle)
-                {
                     s = factoryCircle.FactoryMethod(mouseX, mouseY);
-                }
                 if (sh == SelectedShape.Square)
-                {
                     s = factorySquare.FactoryMethod(mouseX, mouseY);
-                }
-                if(sh == SelectedShape.Triangle)
-                {
+                if (sh == SelectedShape.Triangle)
                     s = factoryTriangle.FactoryMethod(mouseX, mouseY);
-                }
-                if(sh == SelectedShape.Section)
+                if (sh == SelectedShape.Section)
                 {
                     s = factorySquare.FactoryMethod(mouseX, mouseY);
                     s.resize(0, -24);
                 }
-                
+
                 s.IsSelected = true;
                 shapes.Add(s);
             }
             foreach (IShape c in shapes)
                 c.draw(g);
-            
+
             pictureBox1.Refresh();
 
         }
 
         private void pictureBox1_Paint(object sender, PaintEventArgs e)
         {
-            
+
         }
 
         private void pictureBox1_MouseUp(object sender, MouseEventArgs e)
         {
-	
+
         }
 
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            
+
         }
         int d = 0;
         public void deleteSelected()
         {
-            
-            deleteBuffer = new List<IShape>();
-
+            deleteBuffer = new Container<IShape>();
             foreach (IShape c in shapes)
                 if (!c.IsSelected)
-                    deleteBuffer.Add(c); //saved all non-selected
+                    deleteBuffer.Add(c);
+            //saved all non-selected
             shapes.Clear();
             g.Clear(Color.PaleTurquoise);
             foreach (IShape c in deleteBuffer)
                 shapes.Add(c);
-
             foreach (IShape c in shapes)
                 c.draw(g);
-            label1.Text += "j";
+            Console.WriteLine("deleted");
             pictureBox1.Refresh();
         }
         public void deleteSelected2()
         {
 
-            foreach(IShape c in shapes)
-                if(c.IsSelected)
-                    shapes.Remove(c);
-            
-            g.Clear(Color.PaleTurquoise);
-            foreach (IShape c in shapes)
-                c.draw(g);
-            label1.Text += "j";
-            pictureBox1.Refresh();
+
         }
 
         int moveDirX = 0, moveDirY = 0;
-        int movingSpeed = 1;
+        int movingSpeed = 4;
         int resizeDirX = 0, resizeDirY = 0;
-        int sizingSpeed = 1;
+        int sizingSpeed = 3;
 
-        
+
         public void checkOutOfBounds(IShape c)
         {
             var b = c.closestBoundary(boundsX, boundsY);
@@ -173,32 +157,28 @@ namespace Lab6_oop
                 if (b.Y == 0) vec.Y = 1;
                 if (b.X == boundsX) vec.X = -1;
                 if (b.Y == boundsY) vec.Y = -1;
-                c.move(vec.X * 2, vec.Y * 2);
-                
+                c.move(vec.X * 2 * movingSpeed, vec.Y * 2 * movingSpeed);
+
             }
-            
+
         }
 
 
         private void Form1_Resize(object sender, EventArgs e)
         {
-            
-            //pictureBox1.Size = new Size(Size.Width, Size.Height);
-            //Console.WriteLine(pictureBox1.Size);
-            
+
         }
 
         private void Form1_ResizeBegin(object sender, EventArgs e)
         {
-            
+
         }
 
         private void button5_Click(object sender, EventArgs e)
         {
             foreach (IShape c in shapes)
             {
-                var size = c.size;
-                Console.WriteLine("Width: " + size.Width + ", Height: " + size.Height);
+                Console.WriteLine("Size (w, h): " + c.size);
             }
         }
 
@@ -219,18 +199,25 @@ namespace Lab6_oop
                     label1.Text = "|Ctrl|";
                 }
             }
-            if(e.KeyCode == Keys.R)
+            if (e.KeyCode == Keys.R)
             {
-                foreach(IShape c in shapes)
+                //unselect everything
+                foreach (IShape c in shapes)
                 {
                     c.IsSelected = false;
                     c.draw(g);
                 }
                 pictureBox1.Refresh();
             }
-            
-            
+
+
             ///
+            MoveHandle(e);
+            ResizeHandle(e);
+
+        }
+        private void MoveHandle(KeyEventArgs e)
+        {
             if (e.KeyCode == Keys.A) moveDirX = -1; //left
             if (e.KeyCode == Keys.D) moveDirX = 1;  //right
             if (e.KeyCode == Keys.S) moveDirY = 1;  //down
@@ -238,22 +225,23 @@ namespace Lab6_oop
             if (moveDirX != 0 || moveDirY != 0)
             {
                 g.Clear(Color.PaleTurquoise);
-                foreach(IShape shape in shapes)
+                foreach (IShape shape in shapes)
                 {
                     if (shape.IsSelected)
                     {
-                        var b = shape.checkMovDirection(boundsX, boundsY);
-                        moveDirX -= b.X; moveDirY -= b.Y; 
                         shape.move(moveDirX * movingSpeed, moveDirY * movingSpeed);
                         //adjust position when the shape is out of bounds
-                        checkOutOfBounds(shape); 
+                        checkOutOfBounds(shape);
                     }
-                    
+
                     shape.draw(g);
                 }
                 pictureBox1.Refresh();
                 moveDirX = 0; moveDirY = 0;
             }
+        }
+        private void ResizeHandle(KeyEventArgs e)
+        {
 
             if (e.KeyCode == Keys.Q) resizeDirX = -1; //x axis decr
             if (e.KeyCode == Keys.E) resizeDirX = 1;  //x axis incr
@@ -266,7 +254,8 @@ namespace Lab6_oop
                 {
                     if (shape.IsSelected)
                     {
-                        if (resizeDirX > 0 && shape.size.Width >= 300 || resizeDirY > 0 && shape.size.Height >= 300)
+                        if (resizeDirX > 0 && shape.size.Width >= 300
+                            || resizeDirY > 0 && shape.size.Height >= 300)
                         {
                             shape.draw(g);
                             continue;
@@ -280,9 +269,7 @@ namespace Lab6_oop
                 pictureBox1.Refresh();
                 resizeDirY = 0; resizeDirX = 0;
             }
-
         }
-
         private void button1_Click(object sender, EventArgs e)
         {
             sh = SelectedShape.Circle;
@@ -304,14 +291,11 @@ namespace Lab6_oop
         }
 
         private void pictureBox1_MouseMove(object sender, MouseEventArgs e)
-        { 
-            
+        {
+            label5.Text = e.Location.ToString();
         }
 
-        
-
-        
-        
+       
     }
     public class circle : IShape
     {
@@ -337,7 +321,7 @@ namespace Lab6_oop
                 pen = new Pen(Color.Black, 2);
                 brush = new SolidBrush(Color.FromArgb(128, 166, 166, 166)); ;
             }
-            g.DrawEllipse(pen,   position.X - radiusX, position.Y - radiusY, radiusX * 2, radiusY * 2);
+            g.DrawEllipse(pen, position.X - radiusX, position.Y - radiusY, radiusX * 2, radiusY * 2);
             g.FillEllipse(brush, position.X - radiusX, position.Y - radiusY, radiusX * 2, radiusY * 2);
         }
         public bool check(int x, int y)
@@ -365,7 +349,7 @@ namespace Lab6_oop
             radiusX += x;
             radiusY += y;
         }
-        
+
 
     }
 
@@ -376,7 +360,7 @@ namespace Lab6_oop
         public int height { get; set; }
         public bool IsSelected { get; set; } = false;
         public Color colorMain { get; set; }
-        public Size size { get => new Size(width, height); }
+        public Size size { get => new(width, height); }
 
         Point[] pa;
 
@@ -396,7 +380,7 @@ namespace Lab6_oop
                 pen = new Pen(Color.Black, 2);
                 brush = new SolidBrush(Color.FromArgb(128, 166, 166, 166)); ;
             }
-            
+
             pa = new Point[] {
                 new Point(position.X - width, position.Y - height), //left up
                 new Point(position.X + width, position.Y - height), //right up
@@ -430,7 +414,7 @@ namespace Lab6_oop
         }
 
     }
-    
+
     public class triangle : IShape
     {
         public Point position { get; set; }
@@ -439,7 +423,7 @@ namespace Lab6_oop
         public bool IsSelected { get; set; } = false;
 
         public Color colorMain { get; set; }
-        public Size size { get => new Size(offsetX, offsetY); }
+        public Size size { get => new(offsetX * 2, offsetY * 2); }
 
         public Color colorMain2;
         public Color colorSelected;
@@ -471,17 +455,17 @@ namespace Lab6_oop
                 pen = new Pen(colorSelected2, 2);
                 brush = new SolidBrush(colorSelected); ;
             }
-            pa[0].X = position.X;           pa[0].Y = position.Y - offsetY;
+            pa[0].X = position.X; pa[0].Y = position.Y - offsetY;
             pa[1].X = position.X - offsetX; pa[1].Y = position.Y + offsetY / 2;
             pa[2].X = position.X + offsetX; pa[2].Y = position.Y + offsetY / 2;
-            
+
             g.DrawPolygon(pen, pa);
             g.FillPolygon(brush, pa);
 
         }
         public bool check(int x, int y)
         {
-                     
+
             if (IsPointInPolygon(new Point(x, y), pa))
             {
                 IsSelected = true;
@@ -525,54 +509,21 @@ namespace Lab6_oop
                 if ((polygon[i].Y > p.Y) != (polygon[j].Y > p.Y) &&
                      p.X < (polygon[j].X - polygon[i].X) * (p.Y - polygon[i].Y) / (polygon[j].Y - polygon[i].Y) + polygon[i].X)
                     return true;
-            
+
             return false;
-        }
-
-    }
-
-
-    public interface IShape
-    {
-        public Color colorMain { get; set; }
-        public Point position { get; set; }
-        public bool IsSelected { get; set; }
-        public void draw(Graphics g);
-        public bool check(int x, int y);
-        public void move(int x, int y);
-        public void resize(int x, int y);
-        public Size size { get; }
-        /// <summary>
-        /// checks if desired movement is possible
-        /// </summary>
-        /// <param name="boX">width bounds</param>
-        /// <param name="boY">height bounds</param>
-        /// <returns>allowed movement vector</returns>
-        public Point checkMovDirection(int boX, int boY)
-        {
-            int a = 0, b = 0;
-            if (position.X <= 0)    a = -1; //no left movement
-            if (position.X >= boX)  a = 1;  //no right
-            if (position.Y <= 0)    b = -1; //no up
-            if (position.Y >= boY)  b = 1;  //no down
-            
-            return new Point(a, b);
         }
         public Point closestBoundary(int boundX, int boundY)
         {
             Point result = new(0, 0);
-            //int distanceTop = position.Y;
-            //int distanceBot = boundY - position.Y;
-            //int distanceLeft = position.X;
-            //int distanceRight = boundX - position.X;
-            int distanceTop = position.Y - size.Height / 2;
-            int distanceBot = boundY - distanceTop - size.Height;
-            int distanceLeft = position.X - size.Width / 2;
-            int distanceRight = boundX - distanceLeft - size.Width;
+            int distanceTop     = pa[0].Y;
+            int distanceBot     = boundY - distanceTop - size.Height;
+            int distanceLeft    = pa[1].X;
+            int distanceRight   = boundX - distanceLeft - size.Width;
             bool bot = false, right = false;
             if (distanceTop > distanceBot) bot = true;
             if (distanceLeft > distanceRight) right = true;
-
+            Console.WriteLine(distanceTop + "\t" + distanceBot + "\t" + distanceLeft + "\t" + distanceRight + "\t");
+            Console.WriteLine("triangle");
             if (bot)
             {
                 if (right)
@@ -585,7 +536,7 @@ namespace Lab6_oop
                 }
                 if (!right)
                 {
-                    if(distanceBot > distanceLeft)
+                    if (distanceBot > distanceLeft)
                         result = new(0, position.Y);
                     else
                         result = new(position.X, boundY);
@@ -599,7 +550,7 @@ namespace Lab6_oop
                         result = new(boundX, position.Y);
                     else
                         result = new(position.X, 0);
-                    
+
                 }
                 if (!right)
                 {
@@ -608,33 +559,75 @@ namespace Lab6_oop
                     else
                         result = new(position.X, 0);
                 }
-                
+
             }
             return result;
         }
-        public Point closestBoundary1(int boundX, int boundY)
+    }
+
+
+    public interface IShape
+    {
+        public Color colorMain { get; set; }
+        public Point position { get; set; }
+        public bool IsSelected { get; set; }
+        public void draw(Graphics g);
+        public bool check(int x, int y);
+        public void move(int x, int y);
+        public void resize(int x, int y);
+        public Size size { get; }
+        
+        public Point closestBoundary(int boundX, int boundY)
         {
-            //int distanceTop = position.Y;
-            //int distanceBot = boundY - position.Y;
-            //int distanceLeft = position.X;
-            //int distanceRight = boundX - position.X;
+            Point result = new(0, 0);
             int distanceTop = position.Y - size.Height / 2;
             int distanceBot = boundY - distanceTop - size.Height;
             int distanceLeft = position.X - size.Width / 2;
             int distanceRight = boundX - distanceLeft - size.Width;
+            bool bot = false, right = false;
+            if (distanceTop > distanceBot) bot = true;
+            if (distanceLeft > distanceRight) right = true;
+            Console.WriteLine(distanceTop + "\t"+ distanceBot + "\t" + distanceLeft + "\t" + distanceRight + "\t");
+            if (bot)
+            {
+                if (right)
+                {
+                    if (distanceBot > distanceRight)
+                        result = new(boundX, position.Y);
+                    else
+                        result = new(position.X, boundY);
 
-            Point closest = new(boundX, distanceTop);
+                }
+                if (!right)
+                {
+                    if (distanceBot > distanceLeft)
+                        result = new(0, position.Y);
+                    else
+                        result = new(position.X, boundY);
+                }
+            }
+            if (!bot)
+            {
+                if (right)
+                {
+                    if (distanceTop > distanceRight)
+                        result = new(boundX, position.Y);
+                    else
+                        result = new(position.X, 0);
 
-            if (distanceTop < Math.Min(distanceBot, Math.Min(distanceLeft, distanceRight)))
-                closest = new(distanceLeft, 0);
-            else if (distanceBot < Math.Min(distanceTop, Math.Min(distanceLeft, distanceRight)))
-                closest = new(distanceLeft, boundY);
-            else if (distanceLeft < Math.Min(distanceTop, Math.Min(distanceBot, distanceRight)))
-                closest = new(0, distanceTop);
+                }
+                if (!right)
+                {
+                    if (distanceTop > distanceLeft)
+                        result = new(0, position.Y);
+                    else
+                        result = new(position.X, 0);
+                }
 
-            return closest;
+            }
+            return result;
         }
-        
+
         public void recolor(Color main)
         {
             colorMain = main;
@@ -668,6 +661,6 @@ namespace Lab6_oop
         }
     }
 
-    
-    
+
+
 }
