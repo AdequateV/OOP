@@ -1,6 +1,7 @@
 
 using Lab7_oop;
 using Microsoft.VisualBasic.Devices;
+using System.IO;
 using System.Reflection.Emit;
 using System.Security.Policy;
 using System.Windows.Forms;
@@ -17,7 +18,7 @@ namespace Lab7_oop
         int mouseX, mouseY;
         int toolbarHeight = 100;
         SelectedShape sh;
-        shapeFactory sf;
+        shapeCreator sf;
         int boundsX, boundsY;
         int desiredDimension = 25;
         //mouse
@@ -37,7 +38,7 @@ namespace Lab7_oop
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             shapes = new();
 
-            sf = new shapeFactory();
+            sf = new shapeCreator();
             boundsX = pictureBox1.Size.Width;
             boundsY = pictureBox1.Size.Height;
             label4.Text = boundsX.ToString() + " " + boundsY.ToString();
@@ -48,12 +49,12 @@ namespace Lab7_oop
             commands[Keys.S] = new MoveCommand(0, 1 * movingSpeed);
 
             commands[Keys.G] = new ResizeCommand(-1 * sizingSpeed, 0);
-            commands[Keys.J] = new ResizeCommand( 1 * sizingSpeed, 0);
-            commands[Keys.Y] = new ResizeCommand(0, 1  * sizingSpeed);
+            commands[Keys.J] = new ResizeCommand(1 * sizingSpeed, 0);
+            commands[Keys.Y] = new ResizeCommand(0, 1 * sizingSpeed);
             commands[Keys.H] = new ResizeCommand(0, -1 * sizingSpeed);
 
             commands[Keys.Delete] = new DeleteShapeCommand(shapes, g, pictureBox1);
-            
+
         }
 
         enum SelectedShape
@@ -103,6 +104,7 @@ namespace Lab7_oop
                 cmd.execute(s);
                 history.Push(cmd);
                 s = cmd.GetShape();
+                // = shapeCreator.createShapeMethod(mouseX, mouseY, (int)sh);
                 if (sh == SelectedShape.Section)
                     s.resize(0, -(desiredDimension - 1));
 
@@ -164,7 +166,7 @@ namespace Lab7_oop
         {
 
             if (e.KeyCode == Keys.Delete) deleteSelected();
-            
+
             if (Form.ModifierKeys == Keys.Control)
             {
                 if (d++ % 2 == 0) label1.Text += "<";
@@ -175,7 +177,7 @@ namespace Lab7_oop
         }
 
         Stack<ICommand> history = new();
-        Stack<ICommand> canceledHistory= new();
+        Stack<ICommand> canceledHistory = new();
         Dictionary<Keys, ICommand> commands = new();
 
         private void MoveAndResizeHandle(KeyEventArgs e)
@@ -185,7 +187,7 @@ namespace Lab7_oop
             { cmd = commands[e.KeyCode]; }
             catch (Exception)
             { Console.WriteLine("no key"); }
-            
+
             if (cmd != null)
             {
                 g.Clear(Color.PaleTurquoise);
@@ -223,7 +225,7 @@ namespace Lab7_oop
                 Redo();
             }
         }
-        
+
         public void Undo()
         {
             if (history.Count < 1) return;
@@ -246,106 +248,6 @@ namespace Lab7_oop
             foreach (IShape shape in shapes) shape.draw(g);
             pictureBox1.Refresh();
         }
-        private void MoveHandle1(KeyEventArgs e)
-        {
-            ICommand cmd = commands[e.KeyCode];
-            if(cmd != null)
-            {
-                g.Clear(Color.PaleTurquoise);
-                foreach (IShape shape in shapes)
-                {
-                    if (shape.IsSelected)
-                    {
-                        if ((cmd is ResizeCommand rc) &&
-                            (((rc._x > 0 && shape.size.Width >= boundsX) ||
-                             (rc._y > 0 && shape.size.Height >= boundsY)) &&
-                             (shape is not shapeGroup)))
-                        {
-                            Console.WriteLine("AAAAAAAAAAa");
-                            shape.draw(g);
-                            break;
-                        }
-                        ICommand newCmd = cmd.clone();
-                        newCmd.execute(shape);
-                        history.Push(newCmd);
-                        //shape.checkOrFixOutOfBounds(boundsX, boundsY, movingSpeed);
-
-                    }
-                    shape.draw(g);
-                }
-                pictureBox1.Refresh();
-            }
-            if (e.KeyCode == Keys.Z && history.Count > 0)
-            {
-                ICommand lastCmd = history.Pop();
-                lastCmd.unexecute();
-                g.Clear(Color.PaleTurquoise);
-                foreach (IShape shape in shapes) shape.draw(g);
-                pictureBox1.Refresh();
-            }
-
-        }        
-        private void MoveHandle2(KeyEventArgs e)
-        {
-
-            if (e.KeyCode == Keys.A) moveDirX = -1; //left
-            if (e.KeyCode == Keys.W) moveDirY = -1; //up
-            if (e.KeyCode == Keys.D) moveDirX = 1;  //right
-            if (e.KeyCode == Keys.S) moveDirY = 1;  //down
-            
-            if (moveDirX != 0 || moveDirY != 0)
-            {
-                g.Clear(Color.PaleTurquoise);
-                foreach (IShape shape in shapes)
-                {
-                    if (shape.IsSelected)
-                    {
-
-                        ///shape.move(moveDirX * movingSpeed, moveDirY * movingSpeed);
-                        //adjust position when the shape is out of bounds
-                        shape.checkOrFixOutOfBounds(boundsX, boundsY, movingSpeed);
-                        Console.WriteLine(shape.closestBoundary(boundsX, boundsY));
-                    }
-
-                    shape.draw(g);
-                }
-                pictureBox1.Refresh();
-                moveDirX = 0; moveDirY = 0;
-            }
-            
-        }
-        private void ResizeHandle1(KeyEventArgs e)
-        {
-
-            if (e.KeyCode == Keys.G) resizeDirX = -1; //x decr
-            if (e.KeyCode == Keys.J) resizeDirX = 1; //x incr
-            if (e.KeyCode == Keys.H) resizeDirY = -1; //y decr
-            if (e.KeyCode == Keys.Y) resizeDirY = 1; //y incr
-            if (resizeDirX != 0 || resizeDirY != 0)
-            {
-                g.Clear(Color.PaleTurquoise);
-                foreach (IShape shape in shapes)
-                {
-                    if (shape.IsSelected)
-                    {
-                        if (((resizeDirX > 0 && shape.size.Width >= boundsX - 1) ||
-                            (resizeDirY > 0 && shape.size.Height >= boundsY - 1)) &&
-                            (shape is not shapeGroup))
-                        {
-                            shape.draw(g);
-                            continue;
-                        }
-
-                        shape.resize(resizeDirX * sizingSpeed, resizeDirY * sizingSpeed);
-                        shape.checkOrFixOutOfBounds(boundsX, boundsY, movingSpeed);
-                    }
-                    shape.draw(g);
-                }
-                pictureBox1.Refresh();
-                resizeDirY = 0; resizeDirX = 0;
-            }
-        }
-
         private void pictureBox1_MouseMove(object sender, MouseEventArgs e)
         {
             label5.Text = e.Location.ToString();
@@ -423,8 +325,55 @@ namespace Lab7_oop
             pictureBox1.Refresh();
         }
         #endregion
+        StreamReader sr;
+        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            string filename = "C:\\Users\\vadim\\source\\repos\\Lab7_oop\\data.txt";
+            int count; IShape shape;
+            try
+            {
+                sr = new(filename);
+                count = int.Parse(sr.ReadLine());
+                for (int i = 0; i < count; i++)
+                {
+                    string code = sr.ReadLine();
+                    shape = shapeCreator.createShapeMethod(0, 0, code);
+                    if (shape != null)
+                    {
+                        shape.Load(sr);
+                        shapes.Add(shape);
+                    }                        
+                }
+            }
+            finally
+            {
+                sr?.Close();
+            }
+            foreach (IShape c in shapes) c.draw(g);
+            pictureBox1.Refresh();
+        }
+        StreamWriter sw;
+        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                sw = new("C:\\Users\\vadim\\source\\repos\\Lab7_oop\\data.txt");
+                sw.WriteLine(shapes.size.ToString());
+                foreach (IShape shape in shapes)
+                    shape.Save(sw);
+            }
+            finally
+            {
+                sw?.Close();
+            }   
+        }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnGroup_Click(object sender, EventArgs e)
         {
             groupBuffer = new();
             IShape group0 = new shapeGroup();
@@ -443,38 +392,16 @@ namespace Lab7_oop
             pictureBox1.Refresh();
         }
 
-        private void button2_Click(object sender, EventArgs e)
+        private void btnUngroup_Click(object sender, EventArgs e)
         {
-            IShape c3 = new shapeGroup();
-            ((shapeGroup)c3).AddShape(new circle(300, 50));
-
-            IShape c2 = new shapeGroup();
-            ((shapeGroup)c2).AddShape(new circle(300, 150));
-            ((shapeGroup)c2).AddShape(new circle(40, 50));
-            ((shapeGroup)c2).AddShape(c3);
-
-            IShape c1 = new shapeGroup();
-            ((shapeGroup)c1).AddShape(new circle(40, 150));
-            ((shapeGroup)c1).AddShape(new circle(155, 100));
-            ((shapeGroup)c1).AddShape(c2);
-
-            IShape c0 = new shapeGroup();
-            ((shapeGroup)c0).AddShape(c1);
-
-            c0.draw(g);
-            shapes.Add(c0);
-            pictureBox1.Refresh();
-            ((shapeGroup)c0).calcSize();
-        }
-
-        private void button3_Click(object sender, EventArgs e)
-        {
-            foreach(IShape s in shapes)
+            foreach (IShape s in shapes)
             {
                 if (s.IsSelected && s is shapeGroup group)
                     group.Ungroup(shapes);
             }
         }
+
+        
     }
     public class circle : IShape
     {
@@ -496,7 +423,7 @@ namespace Lab7_oop
                 pen = new Pen(Color.Black, 2);
                 brush = new SolidBrush(Color.FromArgb(128, 166, 166, 166)); ;
             }
-            g.DrawEllipse(pen,   position.X - offsetX, position.Y - offsetY, offsetX * 2, offsetY * 2);
+            g.DrawEllipse(pen, position.X - offsetX, position.Y - offsetY, offsetX * 2, offsetY * 2);
             g.FillEllipse(brush, position.X - offsetX, position.Y - offsetY, offsetX * 2, offsetY * 2);
         }
         public override bool check(int x, int y)
@@ -514,7 +441,24 @@ namespace Lab7_oop
 
         }
 
+        public override void Save(StreamWriter sw)
+        {
+            sw.WriteLine("Circle");
+            sw.WriteLine("{0} {1} {2} {3} {4} {5} {6}",
+                position.X, position.Y, offsetX, offsetY, colorMain.R, colorMain.G, colorMain.B);
+        }
 
+        public override void Load(StreamReader sr)
+        {
+            string[] data = sr.ReadLine().Split(' ');
+            position = new(int.Parse(data[0]), int.Parse(data[1]));
+            offsetX = int.Parse(data[2]); offsetY = int.Parse(data[3]);
+            colorMain = Color.FromArgb(
+                int.Parse(data[4]),
+                int.Parse(data[5]),
+                int.Parse(data[6]));
+
+        }
     }
 
     public class square : IShape
@@ -561,8 +505,15 @@ namespace Lab7_oop
             return false;
         }
 
+        public override void Save(StreamWriter sw)
+        {
+            throw new NotImplementedException();
+        }
 
-
+        public override void Load(StreamReader sr)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class triangle : IShape
@@ -643,6 +594,15 @@ namespace Lab7_oop
 
         }
 
+        public override void Save(StreamWriter sw)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void Load(StreamReader sr)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 
@@ -667,11 +627,14 @@ namespace Lab7_oop
             offsetX += x;
             offsetY += y;
         }
-        public virtual void recolor(Color main)
+        public virtual void recolor(Color choice)
         {
-            colorMain = main;
+            colorMain = choice;
         }
 
+        public abstract void Save(StreamWriter sw);
+        public abstract void Load(StreamReader sr);
+        
 
         public virtual Point closestBoundary(int boundX, int boundY)
         {
@@ -742,7 +705,6 @@ namespace Lab7_oop
         public int _x, _y;
         public ResizeCommand(int x, int y)
         {
-            Console.WriteLine("resize cmd");
             _x = x;
             _y = y;
             _shape = null;
@@ -775,7 +737,6 @@ namespace Lab7_oop
         private int _x, _y;
         public MoveCommand(int x, int y)
         {
-            Console.WriteLine("move cmd");
             _x = x;
             _y = y;
             _shape = null;
@@ -793,7 +754,7 @@ namespace Lab7_oop
             _shape?.move(_x, _y);
         }
 
-        public override IShape GetShape() => _shape;        
+        public override IShape GetShape() => _shape;
 
 
         public override void unexecute()
@@ -810,7 +771,6 @@ namespace Lab7_oop
         private Color _newColor;
         public RecolorCommand(Color c)
         {
-            Console.WriteLine("recolor cmd");
             _newColor = c;
             _shape = null;
         }
@@ -832,7 +792,7 @@ namespace Lab7_oop
 
         public override void unexecute()
         {
-            Console.WriteLine("execute recolor");
+            Console.WriteLine("unexecute recolor");
             _shape?.recolor(_oldColor);
         }
     }
@@ -846,10 +806,10 @@ namespace Lab7_oop
         PictureBox _pb;
         public CreateShapeCommand(int x, int y, int type, int index, Container<IShape> shapes, Graphics g, PictureBox pb)
         {
-            _x      = x;
-            _y      = y;
-            _type   = type;
-            _index  = index;
+            _x = x;
+            _y = y;
+            _type = type;
+            _index = index;
             _shapes = shapes;
             _g = g;
             _pb = pb;
@@ -861,9 +821,12 @@ namespace Lab7_oop
 
         public override void execute(IShape shape)
         {
-            _shape = shapeFactory.FactoryMethod(_x, _y, _type);
+            Console.WriteLine("createShapeCommand execute");
+            _shape = shapeCreator.createShapeMethod(_x, _y, _type);
             _shape.IsSelected = true;
             _shapes.Add(_shape);
+
+            _g.Clear(Color.PaleTurquoise);
             foreach (IShape s in _shapes)
                 s.draw(_g);
             _pb.Refresh();
@@ -872,8 +835,10 @@ namespace Lab7_oop
         public override IShape GetShape() => _shape;
         public override void unexecute()
         {
-            Console.WriteLine("_X_X_X_");
+            Console.WriteLine("createShapeCommand unexecute");
             _shapes.RemoveAt(_index);
+
+            _g.Clear(Color.PaleTurquoise);
             foreach (IShape s in _shapes)
                 s.draw(_g);
             _pb.Refresh();
@@ -898,6 +863,7 @@ namespace Lab7_oop
 
         public override void execute(IShape shape)
         {
+            Console.WriteLine("execute delete shape cmd ");
             saveBuffer = new();
             deleteBuffer = new();
             foreach (IShape c in _shapes)
@@ -919,22 +885,22 @@ namespace Lab7_oop
         public override IShape GetShape() => _shape;
         public override void unexecute()
         {
-            Console.WriteLine("_X_X_X_");
-            foreach(IShape s in deleteBuffer)
+            Console.WriteLine("unexecute delete shape cmd ");
+            foreach (IShape s in deleteBuffer)
             {
                 _shapes.Add(s);
             }
-            foreach(IShape s in _shapes)
+            foreach (IShape s in _shapes)
                 s.draw(_g);
             _pb.Refresh();
-            
+
         }
     }
 
-    public class shapeFactory
+    public class shapeCreator
     {
 
-        public static IShape FactoryMethod(int x, int y, int type)
+        public static IShape createShapeMethod(int x, int y, int type)
         {
             if (type == 0) return new circle(x, y);
             if (type == 1) return new square(x, y);
@@ -942,14 +908,23 @@ namespace Lab7_oop
             if (type == 3) return new square(x, y);
             return new circle(x, y);
         }
-        public static IShape FactoryMethod(int x, int y, int type, int dimensions)
+        public static IShape createShapeMethod(int x, int y, int type, int dimensions)
         {
-            if (type == 0) return new circle(x, y,  dimensions);
-            if (type == 1) return new square(x, y,  dimensions);
-            if (type == 2) return new triangle(x, y,dimensions);
-            if (type == 3) return new square(x, y,  dimensions);
+            if (type == 0) return new circle(x, y, dimensions);
+            if (type == 1) return new square(x, y, dimensions);
+            if (type == 2) return new triangle(x, y, dimensions);
+            if (type == 3) return new square(x, y, dimensions);
+            return new circle(x, y);
+        }
+        public static IShape createShapeMethod(int x, int y, string s)
+        {
+            if (s == "Circle") return new circle(x, y);
+            if (s == "Square") return new square(x, y);
+            if (s == "Triangle") return new triangle(x, y);
+            if (s == "Section") return new square(x, y, 1); 
             return new circle(x, y);
         }
     }
+
 
 }
