@@ -1,19 +1,22 @@
-using Lab7_oop.commands;
-using Lab7_oop.utilities;
+using Lab8_oop.scommands;
+using Lab8_oop.utilities;
 using System.Drawing.Drawing2D;
 
-namespace Lab7_oop
+namespace Lab8_oop
 {
 
     public partial class Form1 : Form
     {
-        readonly string path = "C:\\Users\\vadim\\source\\repos\\Lab7_oop\\data.txt";
+        readonly string path = "C:\\Users\\vadim\\source\\repos\\Lab8_oop\\data.txt";
+        //readonly string path = "C:\\Users\\vadim\\source\\repos\\Lab8_oop\\data.txt";
         private Bitmap bm;
         private Graphics g;
-        private List<IShape> shapes;
+        //private List<IShape> shapes;
+        private shapeVault shapes;
         private int mouseX, mouseY;
         private int toolbarHeight = 100;
         SelectedShape sh;
+
         private int boundsX, boundsY;
         private int desiredDimension = 25;
         //mouse
@@ -21,10 +24,13 @@ namespace Lab7_oop
         //settings
         private int movingSpeed = 1;
         private int sizingSpeed = 1;
+        //for proper CreateShapeCommand
+        int shapesIndex = 0;
         private StreamWriter sw;
         private Stack<ICommand> history = new();
         private Stack<ICommand> canceledHistory = new();
         private Dictionary<Keys, ICommand> commands = new();
+        private TreeHandler treeHandler;
         public Form1()
         {
             InitializeComponent();
@@ -35,7 +41,10 @@ namespace Lab7_oop
             g.SmoothingMode = SmoothingMode.AntiAlias;
             DoubleBuffered = true;
             shapes = new();
+            treeHandler = new(treeView1);
 
+            shapes.AddListener(treeHandler);
+            treeHandler.AddListener(shapes);
             boundsX = pictureBox1.Size.Width;
             boundsY = pictureBox1.Size.Height;
             label4.Text = boundsX.ToString() + " " + boundsY.ToString();
@@ -59,15 +68,55 @@ namespace Lab7_oop
         public void UpdateBoundsForShapes()
         {
             foreach (var s in shapes)
-            {
                 s.updBounds(boundsX, boundsY);
-            }
-        }
 
+        }
+        private void pictureBox1_MouseMove(object sender, MouseEventArgs e)
+        {
+            label5.Text = e.Location.ToString();
+        }
+        IShape curr = null;
+        bool arrowMode = false;
         private void pictureBox1_MouseDown(object sender, MouseEventArgs e)
         {
             mouseX = e.X;
             mouseY = e.Y;
+            if (!arrowMode) return;
+            foreach (IShape c in shapes)
+            {
+                if (c.check(mouseX, mouseY))
+                {
+                    curr = c;
+                    return;
+                }
+
+            }
+
+        }
+
+        private void pictureBox1_MouseUp(object sender, MouseEventArgs e)
+        {
+
+            mouseX = e.X;
+            mouseY = e.Y;
+            ///
+            if (arrowMode)
+            {
+                foreach (IShape c in shapes)
+                {
+                    if (c.check(mouseX, mouseY))
+                    {
+                        if (!curr.dungeonMaster.IsWatcher(c) && curr != c)
+                        {
+                            curr.dungeonMaster.AddWatcher(c);
+                            c.watcher.addMaster(curr);
+                            pictureBox1.Refresh();
+                        }
+                        break;
+                    }
+                }
+            }
+            ///
             multi = (Form.ModifierKeys == Keys.Control);
             joints = checkBoxJoints.Checked;
             createNew = true;
@@ -81,39 +130,42 @@ namespace Lab7_oop
                         if (!multi)
                             foreach (IShape c2 in shapes)
                                 if (!c2.check(mouseX, mouseY))
-                                    c2.IsSelected = false;
-
-                        c.IsSelected = true;
+                                    shapes.DeselectShape(c2);
+                        //c2.IsSelected = false;
+                        shapes.SelectShape(c);
+                        //c.IsSelected = true;
                         continue;
                     }
 
-                    foreach (IShape c1 in shapes)
-                        c1.IsSelected = false;
-                    c.IsSelected = true;
+                    //foreach (IShape c1 in shapes)
+                    //    c1.IsSelected = false;
+                    shapes.DeselectAll();
+                    //c.IsSelected = true;
+                    shapes.SelectShape(c);
                 }
             }
             if (createNew)
             {
                 if (!multi)
-                    foreach (IShape c in shapes)
-                        c.IsSelected = false;
+                    shapes.DeselectAll();
+                //foreach (IShape c in shapes)
+                //    c.IsSelected = false;
                 IShape? s = null;
                 ICommand cmd = new CreateShapeCommand(mouseX, mouseY, (int)sh, shapes);
                 cmd.execute(s);
                 history.Push(cmd);
                 s = cmd.GetShape();
-                
+
                 if (sh == SelectedShape.Section)
                     s.resize(0, -(desiredDimension - 1));
+
+                shapesIndex++;
             }
-            foreach (IShape c in shapes)
-                c.draw(g);
+            foreach (IShape c in shapes) c.draw(g);
 
             pictureBox1.Refresh();
             UpdateBoundsForShapes();
-
         }
-
 
         public void deleteSelected()
         {
@@ -165,10 +217,18 @@ namespace Lab7_oop
             }
             MoveAndResizeHandle(e);
             UpdateBoundsForShapes();
-
         }
 
-
+        private void btnGroup_Click(object sender, EventArgs e)
+        {
+            GroupUp();
+            UpdateBoundsForShapes();
+        }
+        private void btnUngroup_Click(object sender, EventArgs e)
+        {
+            UnGroup();
+            UpdateBoundsForShapes();
+        }
 
         private void MoveAndResizeHandle(KeyEventArgs e)
         {
@@ -191,7 +251,7 @@ namespace Lab7_oop
                              (rc._y > 0 && shape.size.Height >= boundsY)) &&
                              (shape is not shapeGroup)))
                         {
-                            Console.WriteLine("AAAAAAAAAAa");
+                            Console.WriteLine("resize non-group");
                             shape.draw(g);
                             break;
                         }
@@ -239,12 +299,71 @@ namespace Lab7_oop
             pictureBox1.Refresh();
         }
 
-        private void pictureBox1_MouseMove(object sender, MouseEventArgs e)
+
+        public void SaveGeneral()
         {
-            label5.Text = e.Location.ToString();
+            ShapeArray array = new();
+            wadimShapeFactory f = new();
+            array.LoadShapes(path, f);
+            shapes = new(array.GetShapes());
+            //shapes = array.GetShapes();
+
+            foreach (IShape c in shapes) c.draw(g);
+            pictureBox1.Refresh();
+            UpdateBoundsForShapes();
+        }
+        public void LoadGeneral()
+        {
+            try
+            {
+                sw = new(path);
+                sw.WriteLine(shapes.Count.ToString());
+                foreach (IShape shape in shapes)
+                    shape.Save(sw);
+            }
+            finally
+            {
+                sw?.Close();
+            }
+        }
+
+        public void UnGroup()
+        {
+            List<IShape> b = new();
+            ICommand cmd = new UnGroupCommand(shapes);
+            foreach (IShape s in shapes)
+                if (s is shapeGroup && s.IsSelected)
+                    b.Add(s);
+            foreach (IShape s in b)
+            {
+                cmd.execute(s);
+                history.Push(cmd);
+            }
+        }
+
+        public void GroupUp()
+        {
+            shapeGroup g = new();
+            ICommand cmd = new GroupCommand(shapes);
+            cmd.execute(g);
+            history.Push(cmd);
         }
 
         #region ui_toolbar
+
+        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            SaveGeneral();
+        }
+
+        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            LoadGeneral();
+        }
+        private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
         public void unselectDropdownMenuItems()
         {
             foreach (ToolStripMenuItem a in toolStripDropDownButton1.DropDownItems)
@@ -317,72 +436,62 @@ namespace Lab7_oop
         }
         #endregion
 
-        private void openToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            ShapeArray array = new();
-            wadimShapeFactory f = new();
-            array.LoadShapes(path, f);
-            shapes = array.GetShapes();
 
+
+
+
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+            arrowMode = !arrowMode;
+        }
+
+        private void pictureBox1_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void treeView1_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            if (e.Action != TreeViewAction.ByMouse) return;
+
+            for (int i = 0; i < treeHandler.treeView.Nodes.Count; i++)
+                treeHandler.treeView.Nodes[i].BackColor = Globals.TreeColorC;
+            
+                
+            TreeNode tmp = e.Node;
+            while (tmp.Parent != null)
+                tmp = tmp.Parent;
+            
+            tmp.BackColor = Globals.TreeColorB;
+            treeHandler.Notify();
+            //treeHandler.treeView.ExpandAll();
+            
             foreach (IShape c in shapes) c.draw(g);
-            pictureBox1.Refresh();
+                pictureBox1.Refresh();
         }
 
-        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        private void treeView1_BeforeSelect(object sender, TreeViewCancelEventArgs e)
         {
-            try
+            if (e.Action == TreeViewAction.Unknown)
             {
-                sw = new(path);
-                sw.WriteLine(shapes.Count.ToString());
-                foreach (IShape shape in shapes)
-                    shape.Save(sw);
+                e.Cancel = true;
             }
-            finally
+            pictureBox1.Select();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            foreach(IShape s in shapes)
             {
-                sw?.Close();
-            }
-        }
-
-        private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void btnGroup_Click(object sender, EventArgs e)
-        {
-            GroupUp();
-            UpdateBoundsForShapes();
-        }
-        private void btnUngroup_Click(object sender, EventArgs e)
-        {
-            UnGroup();
-            UpdateBoundsForShapes();
-        }
-        public void UnGroup()
-        {
-            List<IShape> b = new();
-            ICommand cmd = new UnGroupCommand(shapes);
-            foreach (IShape s in shapes)
-                if (s is shapeGroup && s.IsSelected)
-                    b.Add(s);
-            foreach (IShape s in b)
-            {
-                cmd.execute(s);
-                history.Push(cmd);
+                if (s.IsSelected)
+                {
+                    s.dungeonMaster.Clear();
+                    foreach (IShape s1 in shapes)
+                        s1.dungeonMaster.RemoveWatcher(s);
+                }
             }
         }
-
-        public void GroupUp()
-        {
-            shapeGroup g = new();
-            ICommand cmd = new GroupCommand(shapes);
-            //List<ICommand> cmdList = new();
-            cmd.execute(g);
-            //cmdList.Add(cmd);
-            history.Push(cmd);
-        }
-
-       
     }
 
 
@@ -395,7 +504,12 @@ namespace Lab7_oop
         Section
     }
 
-
+    public class Globals
+    {
+        public static Color TreeColorA = Color.Aquamarine;
+        public static Color TreeColorB = Color.BurlyWood;
+        public static Color TreeColorC = Color.White;
+    }
 
 
 
@@ -407,7 +521,7 @@ namespace Lab7_oop
             if (type == 0) return new circle(x, y);
             if (type == 1) return new square(x, y);
             if (type == 2) return new triangle(x, y);
-            if (type == 3) return new square(x, y);
+            if (type == 3) return new square(x, y, 5);
             return new circle(x, y);
         }
         public static IShape createShapeMethod(int x, int y, int type, int dimensions)
